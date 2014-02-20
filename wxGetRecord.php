@@ -68,8 +68,8 @@ if (1==1)
 		// unpack results
 		$ts        = $row['ts'];
 		$timestamp = $row['timestamp'];
-		$rain      = $row['rain'];
-		$wind      = $row['wind'];
+		$rain      = $row['rain']         / 10.0;
+		$wind      = $row['wind']         / 10.0;
 		$windDir   = $row['windDir']      / 10.0;
 		$battery   = $row['battery']      / 100.0;
 		$tempR     = $row['temperatureR'] / 10.0;
@@ -78,6 +78,23 @@ if (1==1)
 		$pressure  = $row['pressure'];
 		$tempP     = $row['temperatureP'] / 10.0;
 		$dewpoint  = $row['dewpoint']     / 10.0;
+		
+		// separate query to get cumulative rain, depending on period
+		$filter = getFilter($timestamp, $ts, $period);
+		$query = "SELECT sum(rain) as rain from wx where wxid='" . $wxid . "' and " . $filter;
+		if ($debug)
+			echo 'query: ' .$query . '<br>';
+
+		$reply = mysql_query($query);
+		if (!$reply)
+			die('select failed: ' . mysql_error());
+		// unpack the results
+		if ($row = mysql_fetch_assoc($reply))
+		{
+			$rain = $row['rain'] / 10.0;
+		}
+		else
+			die('database read failed');
 
 		if ($style=='T')
 		{
@@ -113,7 +130,7 @@ if ($filter != '' && $style == 'T' )
 	// show trend data (minimum and maximum)
 	
 	// get min
-	$query = "SELECT min(wind), min(rain), min(windDir), min(battery), min(temperatureR), min(humidity), min(temperatureH), min(pressure), min(temperatureP) " .
+	$query = "SELECT min(wind), min(windDir), min(battery), min(temperatureR), min(humidity), min(temperatureH), min(pressure), min(temperatureP) " .
 		", min(dewpoint) " .
 		"from wx " .
 		"where wxid='" . $wxid . "' " .
@@ -129,8 +146,7 @@ if ($filter != '' && $style == 'T' )
 	if($row = mysql_fetch_assoc($reply))
 	{
 		// unpack results
-		$rain      = $row['min(rain)'];
-		$wind      = $row['min(wind)'];
+		$wind      = $row['min(wind)']         / 10.0;
 		$windDir   = $row['min(windDir)']      / 10.0;
 		$battery   = $row['min(battery)']      / 100.0;
 		$tempR     = $row['min(temperatureR)'] / 10.0;
@@ -141,7 +157,6 @@ if ($filter != '' && $style == 'T' )
 		$dewPoint  = $row['min(dewpoint)']     / 10.0;
 
 		// send values
-		echo 'minrain='      . $rain      . ', ';
 		echo 'minwind='      . $wind      . ', ';
 		echo 'minwinddir='   . $windDir   . ', ';
 		echo 'minbattery='   . $battery   . ', ';
@@ -155,7 +170,7 @@ if ($filter != '' && $style == 'T' )
 	}
 
 		// get max
-	$query = "SELECT max(wind), max(rain), max(windDir), max(battery), max(temperatureR), max(humidity), max(temperatureH), max(pressure), max(temperatureP) " .
+	$query = "SELECT max(wind), max(windDir), max(battery), max(temperatureR), max(humidity), max(temperatureH), max(pressure), max(temperatureP) " .
 		", max(dewpoint) " .
 		"from wx " .
 		"where wxid='" . $wxid . "' " .
@@ -171,8 +186,7 @@ if ($filter != '' && $style == 'T' )
 	if($row = mysql_fetch_assoc($reply))
 	{
 		// unpack results
-		$rain      = $row['max(rain)'];
-		$wind      = $row['max(wind)'];
+		$wind      = $row['max(wind)']         / 10.0;
 		$windDir   = $row['max(windDir)']      / 10.0;
 		$battery   = $row['max(battery)']      / 100.0;
 		$tempR     = $row['max(temperatureR)'] / 10.0;
@@ -183,7 +197,6 @@ if ($filter != '' && $style == 'T' )
 		$dewPoint  = $row['max(dewpoint)']     / 10.0;
 
 		// send values
-		echo 'maxrain='      . $rain      . ', ';
 		echo 'maxwind='      . $wind      . ', ';
 		echo 'maxwinddir='   . $windDir   . ', ';
 		echo 'maxbattery='   . $battery   . ', ';
@@ -209,7 +222,7 @@ if ($filter != '' && $style == 'A')
 	// get more results
 	
 	// create the query and get current results
-	$query="SELECT " . $groupBy . " as timestamp, avg(wind) as avgwind, avg(rain) as avgrain, avg(windDir) as avgwinddir, avg(battery) as avgbattery, avg(temperatureR) as avgtemperatureR, " .
+	$query="SELECT " . $groupBy . " as timestamp, avg(wind) as avgwind, sum(rain) as sumrain, avg(windDir) as avgwinddir, avg(battery) as avgbattery, avg(temperatureR) as avgtemperatureR, " .
 		"avg(humidity) as avghumidity, avg(temperatureH) as avgtemperatureH, avg(pressure) as avgpressure, avg(temperatureP) as avgtemperatureP, avg(dewpoint) as avgdewpoint " .
 		"from wx " .
 		"where wxid='" . $wxid . "' " .
@@ -227,8 +240,8 @@ if ($filter != '' && $style == 'A')
 	{
 		// unpack results
 		$timestamp = $row['timestamp'];
-		$rain      = $row['avgrain'];
-		$wind      = $row['avgwind'];
+		$rain      = $row['sumrain'];
+		$wind      = $row['avgwind']         / 10.0;
 		$windDir   = $row['avgwinddir']      / 10.0;
 		$battery   = $row['avgbattery']      / 100.0;
 		$tempR     = $row['avgtemperatureR'] / 10.0;
